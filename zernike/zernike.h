@@ -15,6 +15,7 @@ class Zernike
 		Zernike();
 		virtual ~Zernike();
 		double CalculateMoments(cv::Mat image, int n, int m);
+		std::vector<cv::Point2d> getCanette(cv::Mat image);
 };
 
 #endif // ZERNIKE_H
