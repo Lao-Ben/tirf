@@ -3,6 +3,8 @@
 using namespace std; 
 using namespace cv;
  
+int nbPointAround(Mat image, Point2d pt, cv::Vec3b col, int marge); 
+ 
 Zernike::Zernike()
 {
 } 
@@ -11,24 +13,136 @@ Zernike::~Zernike()
 {
 }
 
-std::vector<cv::Point2d> getRect(std::vector<cv::Point2d> vect)
+bool goodColor(cv::Vec3b pix, cv::Vec3b col, int marge)
+{
+	int margeR = marge;
+   int margeG = marge;
+   int margeB = marge;
+	if(pix.val[0] > (col.val[0] - margeB) && (pix.val[0] < (col.val[0] + margeB)))
+		if(pix.val[1] > (col.val[1] - margeG) && (pix.val[1] < (col.val[1] + margeG)))
+			if(pix.val[2] > (col.val[2] - margeR) && (pix.val[2] < (col.val[2] + margeR)))
+				return true;
+	return false;
+}
+
+bool uniquefonc (double i, double j) {
+	if (abs(i-j) <= 10)
+  		return true;
+  	return false;
+}
+
+vector<double> getFinalVect(vector<double> vect, bool min)
+{
+	vector<double> res;
+	if (min)
+	{
+		res.push_back(vect.at(0));
+		for (unsigned int i=1; i < vect.size(); i++)
+			if (vect.at(i)-vect.at(i-1) > 100)
+				res.push_back(vect.at(i));
+	}
+	else
+	{
+		res.push_back(vect.at(vect.size()-1));
+		for (unsigned int i=vect.size()-2; i > 0; i--)
+			if (abs(vect.at(i)-vect.at(i-1)) > 100)
+				res.push_back(vect.at(i));
+		reverse(res.begin(),res.end());
+	}
+	return res;
+}
+
+int nbPointAround(Mat image, Point2d pt, cv::Vec3b col, int marge)
+{
+	double x = pt.x;
+	double y = pt.y;
+	
+	int res = 0;
+	for(unsigned int i=x-6;i <= x+6; i++)
+	{
+		for (unsigned int j=y-6; j <= y+6; j++)
+		{
+			if (goodColor(image.at<Vec3b>(i,j), col, marge))
+				res = res + 1;
+		}
+	}
+	return res;
+}
+
+vector<vector<Point2d> > getRects(Mat image, vector<Point2d> vect, Vec3b scalColor, int marge)
+{
+	vector<vector<Point2d> > res;
+	vector<double> vectMinX;
+	vector<double> vectMinY;
+	vector<double> vectMaxX;
+	vector<double> vectMaxY;
+	for (unsigned int i=0; i < vect.size(); i++)
+	{
+		Point2d pt = vect.at(i);
+		//if(pt.y == 0 || vectMinX.size() == 0 || pt.y < vectMinX.at(vectMinX.size()-1))
+			vectMinX.push_back(pt.x);
+		//if(pt.y == image.rows || vectMaxX.size() == 0 || pt.y > vectMaxX.at(vectMaxX.size()-1))
+			vectMaxX.push_back(pt.x);
+		//if(pt.x == 0 || vectMinY.size() == 0 || pt.x < vectMinY.at(vectMinY.size()-1))
+			vectMinY.push_back(pt.y);
+		//if(pt.x == image.cols || vectMaxY.size() == 0 || pt.x > vectMaxY.at(vectMaxY.size()-1))
+			vectMaxY.push_back(pt.y);
+	}
+	std::vector<double>::iterator it;
+	sort(vectMinX.begin(),vectMinX.end());
+  	it = unique(vectMinX.begin(),vectMinX.end());
+  	vectMinX.resize(distance(vectMinX.begin(),it));
+	sort(vectMinY.begin(),vectMinY.end());
+	it = unique(vectMinY.begin(),vectMinY.end());
+  	vectMinY.resize(distance(vectMinY.begin(),it));
+	sort(vectMaxX.begin(),vectMaxX.end());
+	it = unique(vectMaxX.begin(),vectMaxX.end());
+  	vectMaxX.resize(distance(vectMaxX.begin(),it));
+	sort(vectMaxY.begin(),vectMaxY.end());
+	it = unique(vectMaxY.begin(),vectMaxY.end());
+  	vectMaxY.resize(distance(vectMaxY.begin(),it));
+  	vector<double> vectMinXfinal = getFinalVect(vectMinX, true);
+	vector<double> vectMinYfinal = getFinalVect(vectMinY, true);
+	vector<double> vectMaxXfinal = getFinalVect(vectMaxX, false);
+	vector<double> vectMaxYfinal = getFinalVect(vectMaxY, false);
+	for (unsigned int i=0; i < vectMinXfinal.size(); i++)
+	{
+		vector<Point2d> v;
+		cout << vectMinXfinal.at(i) << " " << vectMaxXfinal.at(i) << " " << vectMinYfinal.at(i) << " " << vectMaxYfinal.at(i) << endl;
+		v.push_back(Point2d(vectMinYfinal.at(i), vectMinXfinal.at(i)));
+		v.push_back(Point2d(vectMinYfinal.at(i),vectMaxXfinal.at(i)));
+		v.push_back(Point2d(vectMaxYfinal.at(i),vectMinXfinal.at(i)));
+		v.push_back(Point2d(vectMaxYfinal.at(i),vectMaxXfinal.at(i)));
+		for (unsigned j = 0; j < v.size(); j++)
+			std::cout << v.at(j) << " ";
+		std::cout << std::endl;
+		res.push_back(v);
+	}
+	return res;
+}
+
+std::vector<cv::Point2d> getRect(Mat image, std::vector<cv::Point2d> vect, cv::Vec3b col, int marge)
 {
 	vector<Point2d> res;
 	double minX = -1;
 	double minY = -1;
 	double maxX = -1;
 	double maxY = -1;
-	for (unsigned int i=1; i < vect.size(); i++)
+	for (unsigned int i=0; i < vect.size(); i++)
 	{
 		Point2d pt = vect.at(i);
-		if (minX == -1 || minX > pt.x)
-			minX = pt.x;
-		if (minY == -1 || minY > pt.y)
-			minY = pt.y;
-		if (maxX == -1 || maxX < pt.x)
-			maxX = pt.x;
-		if (maxY == -1 || maxY < pt.y)
-		maxY = pt.y;
+		int nbArround = nbPointAround(image, pt, col, marge);
+		if (nbArround >= 165)
+		{
+			if (minX == -1 || minX > pt.x)
+				minX = pt.x;
+			if (minY == -1 || minY > pt.y)
+				minY = pt.y;
+			if (maxX == -1 || maxX < pt.x)
+				maxX = pt.x;
+			if (maxY == -1 || maxY < pt.y)
+				maxY = pt.y;
+		}
 	}
 	res.push_back(Point2d(minY,minX));
 	res.push_back(Point2d(minY,maxX));
@@ -46,30 +160,33 @@ void rotate(cv::Mat& src, double angle, cv::Mat& dst)
     cv::warpAffine(src, dst, r, cv::Size(dst.cols, dst.rows));
 }
 
-void extractRect(Mat image, std::vector<cv::Point2d> rect)
+void extractRect(Mat image, std::vector<cv::Point2d> rect, string name)
 {
 	double minX = rect.at(0).x;
 	double minY = rect.at(0).y;
 	double maxX = rect.at(3).x;
 	double maxY = rect.at(3).y; 
-	Mat M(maxY-minY+1,maxX-minX+1, CV_8UC3);
+	Mat M(maxY-minY+1,maxX-minX+1, image.type());
 	for (unsigned int i = minX; i <= maxX;i++)
 		for (unsigned int j = minY; j <= maxY;j++)
 			M.at<Vec3b>(j-minY,i-minX) = image.at<Vec3b>(j,i);
 	 if (M.rows > M.cols)
     {
-    	Mat tmp(maxX-minX+1,maxY-minY+1, CV_8UC3);
+    	Mat tmp(maxX-minX+1,maxY-minY+1, M.type());
     	rotate(M,-90, tmp);
     	M = tmp;
     }
-	imwrite("extracted.jpg", M);
+   Mat img(140,280, M.type());
+   resize(M,img,img.size(),0,0,INTER_CUBIC);
+   cvtColor(img, img, CV_RGB2GRAY);
+	imwrite(name.append("extracted.jpg"), img);
 }
 
-vector<Point2d> detectObjectWithColor(Mat image, Vec3b scalColor)
+vector<Point2d> detectObjectWithColor(Mat image, Vec3b scalColor, int marge, string name)
 {
-    int margeR = 30;
-    int margeG = 30;
-    int margeB = 30;
+    int margeR = marge;
+    int margeG = marge;
+    int margeB = marge;
  
     Vec3b scalPix;
     Vec3b scalPainter;
@@ -85,14 +202,10 @@ vector<Point2d> detectObjectWithColor(Mat image, Vec3b scalColor)
             	Vec3b scalPix = img_object.at<Vec3b>(x,y);
  
                 //On teste sa couleur
-        if(scalPix.val[0] > (scalColor.val[0] - margeR) && (scalPix.val[0] < (scalColor.val[0] + margeR)))
-        {
-            if(scalPix.val[1] > (scalColor.val[1] - margeG) && (scalPix.val[1] < (scalColor.val[1] + margeG)))
-            {
-                if(scalPix.val[2] > (scalColor.val[2] - margeB) && (scalPix.val[2] < (scalColor.val[2] + margeB)))
+                if (goodColor(scalPix, scalColor, marge))
                 {
-                    scalPainter = scalPix;
-                    points.push_back(Point2d(x,y));
+                	scalPainter = scalPix;
+                	points.push_back(Point2d(x,y));
                 }
                 else
                 {
@@ -100,88 +213,51 @@ vector<Point2d> detectObjectWithColor(Mat image, Vec3b scalColor)
                     scalPainter.val[1] = 0;
                     scalPainter.val[2] = 0;
                 }
-                }
-            else
-            {
-                scalPainter.val[0] = 0;
-                scalPainter.val[1] = 0;
-                scalPainter.val[2] = 0;
-            }
-            }
-        else
-        {
-            scalPainter.val[0] = 0;
-            scalPainter.val[1] = 0;
-            scalPainter.val[2] = 0;
-        }
          img_object.at<Vec3b>(x,y) = scalPainter;
         }
     }
-    vector<Point2d> rect = getRect(points);
-    extractRect(image, rect);
+    vector<Point2d> rect = getRect(image, points, scalColor, marge);
+    extractRect(image, rect, name);
+    /*vector<vector<Point2d> > rects = getRects(image, points, scalColor, marge);
+    for(unsigned int i = 0; i < rects.size(); i++)
+    {
+    	line(image, rects.at(i).at(0), rects.at(i).at(1), Scalar(0,255,0), 1, 8, 0);
+    	line(image, rects.at(i).at(0), rects.at(i).at(2), Scalar(0,255,0), 1, 8, 0);
+    	line(image, rects.at(i).at(1), rects.at(i).at(3), Scalar(0,255,0), 1, 8, 0);
+    	line(image, rects.at(i).at(2), rects.at(i).at(3), Scalar(0,255,0), 1, 8, 0);
+    }*/
     line(image, rect.at(0), rect.at(1), Scalar(0,255,0), 1, 8, 0);
     line(image, rect.at(0), rect.at(2), Scalar(0,255,0), 1, 8, 0);
     line(image, rect.at(1), rect.at(3), Scalar(0,255,0), 1, 8, 0);
     line(image, rect.at(2), rect.at(3), Scalar(0,255,0), 1, 8, 0);
-    cout << rect.at(0) << ";" << rect.at(1) << ";" << rect.at(2) << ";" << rect.at(3) << endl;
-    //namedWindow("Projet2-Detection",CV_WINDOW_AUTOSIZE);//fenetre pour afficher la couleur moyenne
-    //imshow("Projet2-Detection", image);
-    imwrite("temp.jpg", image);
-    
-    waitKey(0);
+    //cout << rect.at(0) << ";" << rect.at(1) << ";" << rect.at(2) << ";" << rect.at(3) << endl;
+    /*namedWindow("Projet2-Detection",CV_WINDOW_AUTOSIZE);//fenetre pour afficher la couleur moyenne
+    imshow("Projet2-Detection", img_object);
+        
+    waitKey(0);*/
+    imwrite(name.append("temp.jpg"), image);
     return rect;
-}
-
-bool goodColor(cv::Vec3b pix, cv::Vec3b col)
-{
-	double bleu = pix.val[0];
-	double vert = pix.val[1];
-	double rouge = pix.val[2];
-	if (bleu >= (col.val[0]-25) && bleu <= (col.val[0]+25) && vert >= (col.val[1]-25) && vert <= (col.val[1]+25) && rouge >= (col.val[2]-25) && rouge <= (col.val[2]+25))
-		return true;
-	return false;
 }
 
 int nbNotColor(cv::Mat image, int i, int j, cv::Vec3b col)
 {
 	int res = 0;
-	if (i - 1 > 0 && !goodColor(image.at<cv::Vec3b>(i-1,j), col))
+	int marge = 30;
+	if (i - 1 > 0 && !goodColor(image.at<cv::Vec3b>(i-1,j), col, marge))
 		res = res + 1;
-	if (i + 1 < image.rows && !goodColor(image.at<cv::Vec3b>(i+1,j), col))
+	if (i + 1 < image.rows && !goodColor(image.at<cv::Vec3b>(i+1,j), col, marge))
 		res = res + 1;
-	if (j - 1 > 0 && !goodColor(image.at<cv::Vec3b>(i,j-1), col))
+	if (j - 1 > 0 && !goodColor(image.at<cv::Vec3b>(i,j-1), col, marge))
 		res = res + 1;
-	if (j + 1 < image.rows && !goodColor(image.at<cv::Vec3b>(i,j+1), col))
+	if (j + 1 < image.rows && !goodColor(image.at<cv::Vec3b>(i,j+1), col, marge))
 		res = res + 1;
 	return res;
 }
 
-vector<cv::Point2d> Zernike::getCanette(cv::Mat image)
+vector<cv::Point2d> Zernike::getCanette(cv::Mat image, int marge, string name)
 {
-	int orient = -1;
 	cv::Vec3b col(18,19,165);
-	vector<cv::Point2d> vect = detectObjectWithColor(image, col);
-	/*for (int i=0; i < image.rows; i++)
-	{
-		for (int j=0; j < image.cols; j++)
-		{
-			cv::Vec3b info = image.at<cv::Vec3b>(i,j);
-			if (goodColor(info, col))
-			{
-				 if (orient == -1)
-				 {
-				 	orient = nbNotColor(image, i, j, col);
-				 	cout << orient << endl;
-				 	vect.push_back(cv::Point2d(i,j));
-				 }
-				 else
-				 {
-				 	if (orient == nbNotColor(image, i, j, col))
-				 		vect.push_back(cv::Point2d(i,j));
-				 }
-			}
-		}
-	}*/
+	vector<cv::Point2d> vect = detectObjectWithColor(image, col, marge, name);
 	return vect;
 }
 
@@ -233,7 +309,7 @@ double Zernike::CalculateMoments(cv::Mat image, int n, int m)
 					int val = (int) 0.1*info.val[0]+0.6*info.val[1]+0.3*info.val[2];
 					cmplx pixel = val;
 					//cout << "i = " << i << " , j = " << j << " , x = " << x << " , y = " << y << " , rho = " << rho << " , val = " << val << " , pixel = " << pixel << endl;
-					zernike+= conj( R(n,m,rho)* polar(1.0, m*theta))*pixel; //Znm = [Rnm(r)*exp(-jmO]]*f(x,y)
+					zernike+= conj( R(n,m,rho)* cmplx(0, m*theta))*pixel; //Znm = [Rnm(r)*exp(-jmO]]*f(x,y)
             }
         }
     }

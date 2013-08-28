@@ -3,6 +3,7 @@
 
 #include <complex>
 #include <cmath>
+#include <algorithm>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <iostream>
@@ -15,7 +16,7 @@ class Zernike
 		Zernike();
 		virtual ~Zernike();
 		double CalculateMoments(cv::Mat image, int n, int m);
-		std::vector<cv::Point2d> getCanette(cv::Mat image);
+		std::vector<cv::Point2d> getCanette(cv::Mat image, int marge, std::string name);
 };
 
 #endif // ZERNIKE_H
