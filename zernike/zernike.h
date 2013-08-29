@@ -15,7 +15,7 @@ class Zernike
 	public:
 		Zernike();
 		virtual ~Zernike();
-		double CalculateMoments(cv::Mat image, int n, int m);
+		double CalculateMoments(cv::Mat image);
 		std::vector<cv::Point2d> getCanette(cv::Mat image, int marge, std::string name);
 };
 

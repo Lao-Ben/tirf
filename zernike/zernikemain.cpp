@@ -58,7 +58,7 @@ void testOnRepert(const char* s, int marge)
 					std::cout << std::endl;
 				}*/
 				cv::Mat img = cv::imread(name.append("extracted.jpg"));
-				double res = z->CalculateMoments(img, 5, 1);
+				double res = z->CalculateMoments(img);
 				std::cout << res << std::endl;
 			}
 		}
@@ -91,12 +91,12 @@ int main(int argc, char** argv)
 	}
 	cv::Mat img = cv::imread(name.append("extracted.jpg"));
 	cvtColor(img, img, CV_RGB2GRAY);
-	double res = z->CalculateMoments(img, 5, 1);
+	double res = z->CalculateMoments(img);
 	std::cout << res << std::endl;	
-	cv::Vec3d moy = getMoyenne(src);
+	/*cv::Vec3d moy = getMoyenne(src);
 	for (int i = 0; i < 3; i++)
 		std::cout << moy.val[i] << " ";
 	std::cout << std::endl;
-	std::cout << cmplx(0, 3) << std::endl;
+	std::cout << cmplx(0, 3) << std::endl;*/
 	return 0;
 }
